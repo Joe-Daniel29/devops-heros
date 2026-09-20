@@ -1,0 +1,5 @@
+
+# local TLS material for ingress labs
+*.key
+tls.crt
+tls.key
