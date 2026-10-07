@@ -1,0 +1,7 @@
+# Issue 2 - Service without endpoints: selector matches no Pod (and the targetPort is wrong).
+apiVersion: v1
+kind: Service
+metadata: {name: broken-service, namespace: taskboard}
+spec:
+  selector: {app: label-that-does-not-exist}
+  ports: [{port: 8080, targetPort: 8080}]

@@ -1,0 +1,7 @@
+# Fix 2 - selector matches the backend Pods and targetPort matches containerPort 8000.
+apiVersion: v1
+kind: Service
+metadata: {name: broken-service, namespace: taskboard}
+spec:
+  selector: {app: taskboard-backend}
+  ports: [{port: 8080, targetPort: 8000}]

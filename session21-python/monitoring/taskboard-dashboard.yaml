@@ -1,0 +1,245 @@
+# Grafana dashboard loaded by the kube-prometheus-stack Grafana sidecar.
+# kubectl apply -f monitoring/taskboard-dashboard.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: taskboard-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  taskboard-api.json: |
+    {
+      "title": "TaskBoard API",
+      "uid": "taskboard-api",
+      "schemaVersion": 39,
+      "refresh": "30s",
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Request rate",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 6,
+            "h": 5
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{namespace=\"taskboard\"}[1m]))",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "p95 latency",
+          "gridPos": {
+            "x": 6,
+            "y": 0,
+            "w": 6,
+            "h": 5
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s"
+            }
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{namespace=\"taskboard\"}[5m])))",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "title": "5xx error rate",
+          "gridPos": {
+            "x": 12,
+            "y": 0,
+            "w": 6,
+            "h": 5
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{namespace=\"taskboard\",status=\"5xx\"}[5m])) / sum(rate(http_requests_total{namespace=\"taskboard\"}[5m])) * 100",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "type": "stat",
+          "title": "Backend pods",
+          "gridPos": {
+            "x": 18,
+            "y": 0,
+            "w": 6,
+            "h": 5
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none"
+            }
+          },
+          "targets": [
+            {
+              "expr": "kube_deployment_status_replicas_available{namespace=\"taskboard\",deployment=\"taskboard-backend\"}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "Requests per second by handler",
+          "gridPos": {
+            "x": 0,
+            "y": 5,
+            "w": 12,
+            "h": 9
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum by (handler) (rate(http_requests_total{namespace=\"taskboard\",handler!=\"/metrics\"}[1m]))",
+              "legendFormat": "{{handler}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "Backend CPU by pod",
+          "gridPos": {
+            "x": 12,
+            "y": 5,
+            "w": 12,
+            "h": 9
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cores"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"taskboard\",container=\"backend\"}[2m]))",
+              "legendFormat": "{{pod}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "Response time p50 / p95",
+          "gridPos": {
+            "x": 0,
+            "y": 14,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s"
+            }
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{namespace=\"taskboard\"}[5m])))",
+              "legendFormat": "p95",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{namespace=\"taskboard\"}[5m])))",
+              "legendFormat": "p50",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "type": "timeseries",
+          "title": "HPA replicas",
+          "gridPos": {
+            "x": 12,
+            "y": 14,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none"
+            }
+          },
+          "targets": [
+            {
+              "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"taskboard\"}",
+              "legendFormat": "current",
+              "refId": "A"
+            },
+            {
+              "expr": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"taskboard\"}",
+              "legendFormat": "max",
+              "refId": "B"
+            }
+          ]
+        }
+      ]
+    }

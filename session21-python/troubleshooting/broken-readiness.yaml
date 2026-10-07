@@ -1,0 +1,21 @@
+# Issue 4 - Pod Running but never Ready: readinessProbe points to a path the API does not serve.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: taskboard-backend-probe, namespace: taskboard}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: taskboard-backend-probe}}
+  template:
+    metadata: {labels: {app: taskboard-backend-probe}}
+    spec:
+      containers:
+      - name: backend
+        image: ghcr.io/joe-daniel29/taskboard-backend:4b7e9d2c81f3a6e05d9b72c4e1a8f3065d2c7b19
+        ports: [{containerPort: 8000}]
+        env:
+        - name: DATABASE_URL
+          valueFrom: {secretKeyRef: {name: taskboard-postgres, key: database-url}}
+        readinessProbe:
+          httpGet: {path: /readyz, port: 8000}
+          initialDelaySeconds: 5
+          periodSeconds: 5

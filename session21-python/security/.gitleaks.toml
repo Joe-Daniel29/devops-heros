@@ -1,0 +1,23 @@
+# Gitleaks secret-scanning config (used by the "Secret scan (Gitleaks)" CI job
+# and locally with: gitleaks dir . --config security/.gitleaks.toml)
+title = "taskboard gitleaks config"
+
+[extend]
+useDefault = true   # all built-in rules: AWS keys, GitHub tokens, private keys, ...
+
+[[rules]]
+id = "postgres-url-with-password"
+description = "PostgreSQL connection string with an inline password"
+regex = '''postgres(?:ql)?(?:\+psycopg)?://[^:\s]+:([^@\s]{6,})@'''
+secretGroup = 1
+keywords = ["postgres"]
+
+[allowlist]
+description = "Local/demo credentials that are intentionally public"
+paths = [
+  '''(^|/)docker-compose\.yml$''',
+  '''(^|/)backend/\.env\.example$''',
+  '''(^|/)helm/taskboard/values\.yaml$''',
+  '''(^|/)troubleshooting/''',
+]
+regexes = ['''taskboard:taskboard@''']

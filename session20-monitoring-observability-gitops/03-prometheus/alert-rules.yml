@@ -1,0 +1,37 @@
+groups:
+  - name: session20-alerts
+    rules:
+      # Always firing - proves the alerting pipeline works end to end.
+      - alert: Watchdog
+        expr: vector(1)
+        labels:
+          severity: none
+        annotations:
+          summary: "Alerting pipeline is working"
+
+      # Application health - a scrape target is not responding.
+      - alert: InstanceDown
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Target {{ $labels.instance }} ({{ $labels.job }}) is down"
+
+      # CPU utilisation of a scraped process above 80% of one core.
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total[1m]) * 100 > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU on {{ $labels.instance }}: {{ $value | printf \"%.1f\" }}%"
+
+      # Memory utilisation (resident set size) above 512 MiB.
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes > 512 * 1024 * 1024
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory on {{ $labels.instance }}: {{ $value | humanize1024 }}B"

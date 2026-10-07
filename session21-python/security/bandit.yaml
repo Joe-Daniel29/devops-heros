@@ -1,0 +1,7 @@
+# Bandit SAST config: bandit -c security/bandit.yaml -r backend/app
+exclude_dirs:
+  - backend/tests
+  - backend/alembic
+  - .venv
+# B101 (assert) is only relevant to test code, which is excluded anyway.
+skips: ["B101"]

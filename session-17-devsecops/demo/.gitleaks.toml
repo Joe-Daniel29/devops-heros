@@ -1,0 +1,18 @@
+# Gitleaks (secret scanning) configuration
+#   gitleaks dir . --config .gitleaks.toml -v      (local, working tree)
+#   gitleaks/gitleaks-action@v2                     (CI, full git history)
+
+title = "hey-cicd gitleaks config"
+
+# Start from the built-in gitleaks rules (AWS keys, GitHub tokens, private keys, ...)
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated files that can never contain real secrets"
+paths = [
+  '''(^|/)\.coverage$''',
+  '''(^|/)__pycache__/''',
+  '''(^|/)\.pytest_cache/''',
+  '''(^|/)\.venv/''',
+]

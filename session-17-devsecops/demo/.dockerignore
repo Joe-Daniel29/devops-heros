@@ -1,0 +1,15 @@
+# keep the build context small and free of local / secret files
+.git
+.github
+.venv
+__pycache__/
+*.pyc
+.coverage
+.pytest_cache/
+tests/
+k8s/
+*.md
+.env
+.gitleaks.toml
+trivy.yaml
+bandit.yaml

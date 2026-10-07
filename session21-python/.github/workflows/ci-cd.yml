@@ -1,0 +1,129 @@
+name: TaskBoard Python CI/CD
+# Paths are relative to the repository root (Joe-Daniel29/devops-heros);
+# the project lives in session21-python/. Changes that only touch gitops/
+# (environment config applied by Argo CD) do not rebuild images.
+on:
+  push:
+    branches: [main]
+    paths: ["session21-python/**", "!session21-python/gitops/**"]
+  pull_request:
+    branches: [main]
+    paths: ["session21-python/**", "!session21-python/gitops/**"]
+env:
+  REGISTRY: ghcr.io
+  PROJECT_DIR: session21-python
+jobs:
+  # ---------------------------------------------------------------- DevSecOps
+  secret-scan:
+    name: Secret scan (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: session21-python/security/.gitleaks.toml
+  sast:
+    name: SAST (Bandit)
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: session21-python}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Install Bandit
+        run: pip install bandit==1.8.6
+      - name: Run Bandit (fails on medium/high severity)
+        run: bandit -c security/bandit.yaml -r backend/app --severity-level medium --confidence-level medium
+  sca:
+    name: SCA (pip-audit + Trivy fs)
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: session21-python}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: pip-audit (Python dependencies)
+        run: |
+          pip install pip-audit==2.9.0
+          pip-audit -r backend/requirements.txt --strict
+      - name: Trivy filesystem scan (dependencies + secrets)
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          scan-type: fs
+          scan-ref: session21-python
+          trivy-config: session21-python/security/trivy.yaml
+  # ---------------------------------------------------------------- Build & test
+  test:
+    name: Test & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt
+        working-directory: session21-python/backend
+      - name: Run backend tests
+        run: pytest -v
+        working-directory: session21-python/backend
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Build frontend
+        run: npm install && npm run build
+        working-directory: session21-python/frontend
+  build-scan-push:
+    name: Build, scan & push images
+    needs: [test, secret-scan, sast, sca]
+    runs-on: ubuntu-latest
+    permissions: {contents: read, packages: write}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set lowercase image owner
+        run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build images
+        run: |
+          docker build -t ghcr.io/$OWNER/taskboard-backend:${{ github.sha }} $PROJECT_DIR/backend
+          docker build -t ghcr.io/$OWNER/taskboard-frontend:${{ github.sha }} $PROJECT_DIR/frontend
+      - name: Scan backend image (Trivy)
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: ghcr.io/${{ env.OWNER }}/taskboard-backend:${{ github.sha }}
+          trivy-config: session21-python/security/trivy.yaml
+      - name: Scan frontend image (Trivy)
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: ghcr.io/${{ env.OWNER }}/taskboard-frontend:${{ github.sha }}
+          trivy-config: session21-python/security/trivy.yaml
+      - name: Push images
+        if: github.event_name == 'push'
+        run: |
+          docker push ghcr.io/$OWNER/taskboard-backend:${{ github.sha }}
+          docker push ghcr.io/$OWNER/taskboard-frontend:${{ github.sha }}
+  # ---------------------------------------------------------------- Deploy (GitOps)
+  gitops-promote:
+    name: Promote image tag (GitOps)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build-scan-push
+    runs-on: ubuntu-latest
+    permissions: {contents: write}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update image tags in gitops/values-minikube.yaml
+        run: |
+          yq -i '.backend.tag = "${{ github.sha }}" | .frontend.tag = "${{ github.sha }}"' \
+            $PROJECT_DIR/gitops/values-minikube.yaml
+          git diff --stat
+      - name: Commit and push (Argo CD syncs the cluster)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore(gitops): promote taskboard images to ${GITHUB_SHA::7} [skip ci]"
+          git push

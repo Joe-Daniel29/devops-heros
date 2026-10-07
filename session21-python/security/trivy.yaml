@@ -1,0 +1,15 @@
+# Trivy config shared by the SCA (filesystem) and container image scans.
+#   trivy fs    --config security/trivy.yaml .
+#   trivy image --config security/trivy.yaml ghcr.io/<owner>/taskboard-backend:<sha>
+severity:
+  - HIGH
+  - CRITICAL
+exit-code: 1            # security gate: fail the job on HIGH/CRITICAL findings
+scan:
+  scanners:
+    - vuln
+    - secret
+vulnerability:
+  ignore-unfixed: true  # only fail on CVEs that already have a fixed version
+ignorefile: security/.trivyignore
+timeout: 10m

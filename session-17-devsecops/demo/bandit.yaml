@@ -1,0 +1,12 @@
+# Bandit (SAST) configuration
+#   bandit -r app -c bandit.yaml --severity-level medium
+# The pipeline fails on MEDIUM and HIGH findings; LOW findings are reported only.
+
+exclude_dirs:
+  - tests
+  - .venv
+
+skips:
+  # B104 hardcoded_bind_all_interfaces: the app runs inside a container and
+  # must listen on 0.0.0.0 so the Kubernetes Service can reach it.
+  - B104

@@ -1,0 +1,19 @@
+# Trivy (container image scanning) configuration
+#   trivy image --config trivy.yaml session17-python:<tag>
+# Security gate: exit code 1 when a HIGH or CRITICAL vulnerability
+# with an available fix is found in the image.
+
+scan:
+  scanners:
+    - vuln
+
+severity:
+  - HIGH
+  - CRITICAL
+
+exit-code: 1
+
+vulnerability:
+  ignore-unfixed: true
+
+format: table

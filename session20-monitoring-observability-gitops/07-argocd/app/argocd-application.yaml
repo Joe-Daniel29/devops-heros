@@ -1,0 +1,26 @@
+# Apply this file from your local/admin environment; do not put it under the Git source path.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: session20-app
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Joe-Daniel29/devops-heros.git
+    targetRevision: main
+    path: session20-monitoring-observability-gitops/07-argocd/app
+    directory:
+      exclude: argocd-application.yaml   # this file is applied manually, not synced
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: session20
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

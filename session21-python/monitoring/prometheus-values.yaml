@@ -1,0 +1,16 @@
+# helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+#   -n monitoring --create-namespace -f monitoring/prometheus-values.yaml
+grafana:
+  enabled: true
+  adminPassword: prom-operator      # demo only; change for any shared cluster
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard      # ConfigMaps with this label are loaded as dashboards
+      searchNamespace: ALL
+prometheus:
+  prometheusSpec:
+    # pick up ServiceMonitors from every namespace, not only the ones labelled for this release
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+    retention: 2d
